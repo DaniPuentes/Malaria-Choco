@@ -5,46 +5,61 @@
 # Author: Daniela A. Puentes Herrera, Maria A. Parra & Laura Serna
 ################################################
 
-# 0. Cargar librerias 
-library(tidyverse) #Manejo de dataframes
-library(lubridate) #Fechas
-library(corrplot) #Correlaciones
-library(car) #Correlaciones
 
-# 1. Cargar datos depurados de malaria en municipios del Choco
-ruta <- "datos/choco_data_V2.csv"
+# Load libraries
+packages <- c("readr","Hmisc","zoo","lubridate","dplyr","ggplot2","forecast","tseries","lmtest","ggfortify", "reshape2")
+lapply(packages, library, character.only = TRUE)
+rm(packages)
+
+
+# Cargar datos depurados de malaria en municipios del Choco
+ruta <- "datos/choco_data_agrupada.csv"
 datos <- read.csv(ruta)
+datos <- datos %>% arrange(DATE2) #Ordenar los datos
 glimpse(datos)
+rm(ruta)
 
-# 2. Filtrar por especie 
-falciparum <- datos %>% filter(MALARIA == "MALARIA FALCIPARUM") %>% na.omit()
-vivax       <- datos %>% filter(MALARIA == "MALARIA VIVAX") %>% na.omit()
-
-data_falciparum <- split(falciparum, falciparum$COD_MUN)
-data_vivax <- split(vivax, vivax$COD_MUN)
-
-
+# Series de tiempo
+cases_ts <- ts(datos$CASES_total, start = c(2008,1), frequency = 12)
+temp_ts  <- ts(datos$MUN_T_MEAN_MEAN_M, start = c(2008,1), frequency = 12)
+prec_ts  <- ts(datos$PREC_CUM_MONTH_M,  start = c(2008,1), frequency = 12)
+evi_ts   <- ts(datos$MEAN_EVI_M,       start = c(2008,1), frequency = 12)
 
 
-# # 2. Variables seleccionadas
-# selected_vars <- c("CASES", "MUN_T_MEAN_MAX", "MUN_T_MEAN_MIN", 
-#                    "MUN_T_MEAN_MEAN", "PREC_CUM_MONTH", "mean_evi_interp")
-# 
-# climatic_vars <- c("MUN_T_MEAN_MAX", "MUN_T_MEAN_MIN", 
-#                    "MUN_T_MEAN_MEAN", "PREC_CUM_MONTH", "mean_evi_interp")
-# 
+# Correlaciones simples
 
-plot_muni_series <- function(data, X, Y){
-  
-  data %>% 
-    ggplot(aes_string(x = X, y = Y)) +
-    geom_line() +
-    geom_point() +
-    labs(title = paste("Municipality:", muni_id),
-         x = time_col,
-         y = value_col) +
-    theme_minimal()
-}
+## Renombrar los datos 
+df_cor <- datos %>% select(Cases = CASES_total, Mean_Temperature = MUN_T_MEAN_MEAN_M,
+    Accumulative_Precipitation = PREC_CUM_MONTH_M, Mean_EVI = MEAN_EVI_M)
 
-plot_muni_series(data_falciparum$`27001`, data_falciparum$`27001`$DATE2, data_falciparum$`27001`$CASES)
+## Matriz de correlacion 
+mydata.cor = cor(df_cor, method = c("pearson"))
+mydata.rcorr = rcorr(as.matrix(df_cor)) # Matriz de correlación con p-values
+mydata.coeff = mydata.rcorr$r
+mydata.p =  mydata.rcorr$P
+
+
+## Plotear 
+corrplot(mydata.cor)
+
+
+
+
+
+
+
+# Correlacion cruzada 
+
+# Temperatura → Casos
+ccf(temp_ts, cases_ts, main="CCF: Temperature vs Malaria Cases")
+
+# Precipitación → Casos
+ccf(prec_ts, cases_ts, main="CCF: Precipitation vs Malaria Cases")
+
+# EVI → Casos
+ccf(evi_ts, cases_ts, main="CCF: EVI vs Malaria Cases")
+
+
+
+
 
