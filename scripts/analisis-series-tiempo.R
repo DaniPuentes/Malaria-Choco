@@ -43,11 +43,6 @@ mydata.p =  mydata.rcorr$P
 corrplot(mydata.cor)
 
 
-
-
-
-
-
 # Correlacion cruzada 
 
 # Temperatura → Casos
